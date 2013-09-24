@@ -14,10 +14,16 @@ $(function() {
 	var $guesses = $('#guesses');
 	var $restart = $('#restart');
 
-	function generateGuess(numCol, numPeg) {
+	function generateGuess(numCol, numPeg, allowDuplicates) {
 		var retVal = [];
 		for (var i = 0; i < numPeg; ++i) {
-			retVal.push(Math.floor(Math.random() * numCol));
+			var randColor = Math.floor(Math.random() * numCol);
+			if (!allowDuplicates) {
+				while (retVal.indexOf(randColor) != -1) {
+					randColor = Math.floor(Math.random() * numCol);
+				}
+			}
+			retVal.push(randColor);
 		}
 		return retVal;
 	}
@@ -120,12 +126,13 @@ $(function() {
 		var $newGuessLine;
 		var $numCol = $('#numCol');
 		var $numPeg = $('#numPeg');
+		var $allowDuplicates = $('#allowDuplicates')
 		updateOldData();
-		guess = generateGuess($numCol.val(), $numPeg.val());
+		guess = generateGuess($numCol.val(), $numPeg.val(), $allowDuplicates.is(':checked'));
 		console.log('Guessing ' + guess + '?');
 		while (guessContradicts(guess)) {
 			console.log('Try again... Guessing ' + guess + '?');
-			guess = generateGuess($numCol.val(), $numPeg.val());
+			guess = generateGuess($numCol.val(), $numPeg.val(), $allowDuplicates.is(':checked'));
 		}
 		console.log('Yes, guess is: ' + guess);
 		$newGuessLine = $('<li/>', { text : '' + guess});
@@ -148,6 +155,7 @@ $(function() {
 <div>
 <div><label for="numCol">Number of colors:</label> <input type="number" id="numCol" min="0" step="1" value="4"/></div>
 <div><label for="numPeg">Number of pegs:</label> <input type="number" id="numPeg" min="0" step="1" value="4"/></div>
+<div><input type="checkbox" id="allowDuplicates" checked="checked"></input><label for="allowDuplicates">Allow duplicate collors in a guess:</label></div>
  <button id="restart">(Re)Start</button>
 </div>
 
