@@ -3,7 +3,7 @@
 <head>
 <title>Mastermind Solver</title>
 <style type="text/css">
-input {
+input.number{
 	width: 3em;
 }
 </style>
@@ -13,7 +13,6 @@ $(function() {
 	var DATA_KEY = 'nebu-mastermind-solver';
 	var $guesses = $('#guesses');
 	var $restart = $('#restart');
-
 	function generateGuess(numCol, numPeg, allowDuplicates) {
 		var retVal = [];
 		for (var i = 0; i < numPeg; ++i) {
@@ -42,7 +41,7 @@ $(function() {
 		}
 		return false;
 	}
-	
+
 	/**
 	 * Given an answer (an array of integers) and a guess (array of integers),
 	 * returns a judgement (an object with fields "allCorrect" for number of
@@ -72,7 +71,7 @@ $(function() {
 		}
 		return retVal;
 	}
-	
+
 	/**
 	 * Returns true if the provided guess (an array of integers) contradicts any
 	 * of the evidence lines (li with jquery data stored). Returns false in all
@@ -134,33 +133,54 @@ $(function() {
 			console.log('Try again... Guessing ' + guess + '?');
 			guess = generateGuess($numCol.val(), $numPeg.val(), $allowDuplicates.is(':checked'));
 		}
-		console.log('Yes, guess is: ' + guess);
-		$newGuessLine = $('<li/>', { text : '' + guess});
+		console.log('Yes, guess is: ' + convertGuess(guess));
+		$newGuessLine = $('<li/>', { text : '' + convertGuess(guess)});
 		$newGuessLine.append($(' <span> Right Color & Column: <input class="exactlyRight" type="number"/></span>'));
 		$newGuessLine.append($(' <span> Right Color, Wrong Column: <input class="rightColor" type="number"/></span>'));
 		$newGuessLine.append($('<button class="done">Done</button>'));
 		$newGuessLine.data(DATA_KEY, {guess: guess});
 		$guesses.append($newGuessLine);
 	}
-	
+	/**
+	 * Generates and returns a corresponding array of colorNames (an array of strings) from the comma-seperated list 
+	 * in the textbox for each guess (an array of integers)
+	 */
+	function convertGuess(guess) {
+		var $colNames=$('#colNames').val();
+		var colorNames=[];
+		var retVal = [];
+		var i;
+		if($colNames.length>1){
+			colorNames=$colNames.split(",");
+		}
+		for(i=0;i<guess.length;i++) {
+			if(colorNames.length>guess[i]) {
+				retVal.push(colorNames[guess[i]]);
+			}
+			else {
+				retVal.push(guess[i]);
+			}
+		}
+		return retVal;
+	}
+
 	$restart.click(function() {
 		$guesses.children().remove();
 		update();
 	});
 	$('.done').live('click', update);
 });
-</script>
-</head>
+</script></head>
 <body>
 <div>
-<div><label for="numCol">Number of colors:</label> <input type="number" id="numCol" min="0" step="1" value="4"/></div>
-<div><label for="numPeg">Number of pegs:</label> <input type="number" id="numPeg" min="0" step="1" value="4"/></div>
-<div><input type="checkbox" id="allowDuplicates" checked="checked"></input><label for="allowDuplicates">Allow duplicate collors in a guess:</label></div>
+<div><label for="numCol">Number of colors:</label> <input class="number" type="number" id="numCol" min="0" step="1" value="4"/> <label for="colNames">Comma seperated list of color names:</label> <input type="text" id="colNames"></div>
+<div><label for="numPeg">Number of pegs:</label> <input class="number" type="number" id="numPeg" min="0" step="1" value="4"/></div>
+<div><input type="checkbox" id="allowDuplicates" checked="checked"></input><label for="allowDuplicates">Allow duplicate colors in a guess:</label></div>
  <button id="restart">(Re)Start</button>
 </div>
 
 <div>
-Note that colors indicated below are 0 based (e.g. if there are 4 colors, they will be "color 0", "color 1", "color 2" and "color 3").
+Note that any colors with names not specified at the top will be indicated below using their 0 based number (e.g. if there are 4 colors, they will be "0", "1", "2" and "3").
 <ol id="guesses"/>
 </div>
 </body>
