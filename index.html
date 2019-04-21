@@ -1,187 +1,369 @@
-<!DOCTYPE HTML>
-<html>
-<head>
-<title>Mastermind Solver</title>
-<style type="text/css">
-input.number{
-	width: 3em;
-}
-</style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.6.4/jquery.min.js" integrity="sha256-lR1rrjnrFy9XqIvWhvepIc8GD9IfWWSPDSC2qPmPxaU=" crossorigin="anonymous"></script>
-<script type="text/javascript">
-$(function() {
-	var DATA_KEY = 'nebu-mastermind-solver';
-	var $guesses = $('#guesses');
-	var $restart = $('#restart');
-	function generateGuess(numCol, numPeg, allowDuplicates) {
-		var retVal = [];
-		for (var i = 0; i < numPeg; ++i) {
-			var randColor = Math.floor(Math.random() * numCol);
-			if (!allowDuplicates) {
-				while (retVal.indexOf(randColor) != -1) {
-					randColor = Math.floor(Math.random() * numCol);
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+		<title>Mastermind Solver</title>
+	</head>
+	<body>
+		<div class="container">
+			<div>
+				<div class="form-row algin-items-center">
+					<div class="col-md-1">
+						<label for="colorLabels" class="col-form-label">Colors:</label>
+					</div>
+					<div class="col-md-4">
+						<input type="text" class="form-control" id="colorLabels" value="Red, Green, Blue, Yellow, Orange, Cyan">
+					</div>
+					<div class="col-md-2">
+						<label for="numPegs" class="col-form-label">Number of Pegs:</label>
+					</div>
+					<div class="col-md-1">
+						<input type="number" class="form-control" id="numPegs" min="1" step="1" value="4">
+					</div>
+					<div class="col-md-2">
+						<div class="form-check">
+							<input type="checkbox" class="form-check-input" id="allowDups" checked="checked">
+							<label for="allowDups" class="form-check-label">Allow duplicate colors</label>
+						</div>
+					</div>
+					<div class="col-md-2">
+						<button id="start" class="btn btn-primary">Start</button>
+					</div>
+				</div>
+				<div id="input-alert" class="alert alert-danger" style="display: none">
+					Something went wrong.
+				</div>
+			</div>
+			<hr/>
+			<div id="play-area">
+				<table id="old-guesses-table" class="table table-striped table-hover" style="display: none">
+					<thead>
+						<tr><th>Guess</th><th>Right color and column</th><th>Right color, wrong column</th></tr>
+					</thead>
+					<tbody id="old-guesses">
+					</tbody>
+				</table>
+				<div id="cur-guess">
+				</div>
+				<div id="cur-guess-alert" class="alert alert-danger" style="display: none">
+					Something went wrong.
+				</div>
+				<div id="success" class="alert alert-success" style="display: none">
+					Congratulations! Click "Restart" to try again.
+				</div>
+				<script id="new-guess-template" type="text/x-handlebars-template">
+					<div class="guess">Is it maybe <b>{{guess}}</b>?</div>
+					<div class="form-inline">
+						<label>Right color and Column: </label>
+						<input type="number" min="0" step="1" max="{{numPegs}}" value="0" class="form-control bothCorrect">
+						<label>Right color, wrong Column: </label>
+						<input type="number" min="0" step="1" max="{{numPegs}}" value="0" class="form-control colorCorrect">
+						<button class="btn btn-primary">Next</button>
+					</div>
+				</script>
+				<script id="old-guess-template" type="text/x-handlebars-template">
+					<tr class="evidence"><td>{{guess}}</td><td>{{bothCorrect}}</td><td>{{colorCorrect}}</tr></tr>
+				</script>
+			</div>
+		</div>
+		<!-- Optional JavaScript -->
+		<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+		<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.1.2/handlebars.min.js" integrity="sha256-ngJY93C4H39YbmrWhnLzSyiepRuQDVKDNCWO2iyMzFw=" crossorigin="anonymous"></script>
+		<script type="text/javascript">
+			$(function() {
+				'use strict';
+				var $startBtn = $('#start');
+				var $oldGuessesTable = $('#old-guesses-table');
+				var $playAreaOldGuesses = $('#old-guesses');
+				var $playAreaCurGuess = $('#cur-guess');
+				var $colorLabels = $('#colorLabels');
+				var $numPegs = $('#numPegs');
+				var $allowDups = $('#allowDups');
+				var $inputAlert = $('#input-alert');
+				var $curGuessAlert = $('#cur-guess-alert');
+				var $success = $('#success');
+				var newGuessTemplate = Handlebars.compile($('#new-guess-template').html());
+				var oldGuessTemplate = Handlebars.compile($('#old-guess-template').html());
+
+				/*
+				 * Structure is like:
+				 * { numPegs: 4, colors: ["red", "green",."blue"], allowDups: true}
+				 */
+				var globalGameState = null;
+
+				function pickFromArray(arr) {
+					return arr[Math.floor(Math.random() * arr.length)];
 				}
-			}
-			retVal.push(randColor);
-		}
-		return retVal;
-	}
 
-	/**
-	 * Given an array and an element, returns true if the array contains the element,
-	 * false otherwise.
-	 */
-	function contains(arr, el) {
-		var length = arr.length;
-		var i;
-		for (i = 0; i < length; ++i) {
-			if (arr[i] === el) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * Given an answer (an array of integers) and a guess (array of integers),
-	 * returns a judgement (an object with fields "allCorrect" for number of
-	 * exactly correct data, and "colorCorrect" for number of correct colors but
-	 * wrong column.
-	 */
-	function judgeGuess(answer, guess) {
-		var length = answer.length;
-		var i, j;
-		var retVal = {allCorrect: 0, colorCorrect: 0};
-		var skipList = [];
-		for (i = 0; i < length; ++i) {
-			if (answer[i] == guess[i]) {
-				retVal.allCorrect++;
-				skipList.push(i);
-			}
-		}
-		for (i = 0; i < length; ++i) {
-			if (contains(skipList, i)) continue;
-			for (j = 0; j < length; ++j) {
-				if (contains(skipList, j)) continue;
-				if (answer[i] == guess[j]) {
-					retVal.colorCorrect++;
-					break;
+				/**
+				 * @param colors e.g. ["red", "green", "blue"];
+				 * @return e.g. [[rrr], [rrg], [rrb], [rgr], ... ]
+				 */
+				function generateAllPossibleGuessesWithDups(numPegs, colors) {
+					if (numPegs < 1) {
+						throw "numPegs must be at least 1.";
+					}
+					if (numPegs === 1) {
+						return colors.slice(0);
+					}
+					let suffixes = generateAllPossibleGuessesWithDups(numPegs - 1, colors);
+					let retVal = [];
+					colors.forEach((color) => {
+						suffixes.forEach((suffix) => {
+							retVal.push([color].concat(suffix));
+						});
+					});
+					return retVal;
 				}
-			}
-		}
-		return retVal;
-	}
 
-	/**
-	 * Returns true if the provided guess (an array of integers) contradicts any
-	 * of the evidence lines (li with jquery data stored). Returns false in all
-	 * other cases, including the case that there are no evidence lines.
-	 */
-	function guessContradicts(guess) {
-		var contradictionFound = false;
-		$guesses.children().each(function(index, evidence) {
-				var $evidence = $(evidence);
-				var evidenceObj = $evidence.data(DATA_KEY);
-				if (evidenceObj && evidenceObj.allCorrect) {
-					/*
-					 * Treat the guess like an answer, and treat the evidence as a guess,
-					 * and see whether the judgement is the same.
-					 */
-					var judgement = judgeGuess(guess, evidenceObj.guess)
-					if ((judgement.allCorrect != evidenceObj.allCorrect) || (judgement.colorCorrect != evidenceObj.colorCorrect)) {
-						contradictionFound = true;
+				function generateAllPossibleGuessesNoDups(numPegs, colors) {
+					if (numPegs < 1) {
+						throw "numPegs must be at least 1.";
+					}
+					if (numPegs === 1) {
+						return colors.slice(0);
+					}
+					let retVal = [];
+					for (let index = 0; index < colors.length; index++) {
+						let firstColor = colors[index];
+						let remainingColors = colors.filter((element, otherIndex) => otherIndex != index);
+						let suffixes = generateAllPossibleGuessesNoDups(numPegs - 1, remainingColors);
+						suffixes.forEach((suffix) => {
+							retVal.push([firstColor].concat(suffix));
+						});
+					}
+					return retVal;
+				}
+
+				/**
+				 * @param answer e.g. ["red", "green", "blue", "blue"]
+				 * @param guess e.g. ["blue, green", "yellow", "red"]
+				 * return e.g. { bothCorrect: 1, colorCorrect: 2 }
+				 */
+				function judgeGuess(answer, guess) {
+					let length = answer.length;
+					let retVal = {bothCorrect: 0, colorCorrect: 0};
+					let skipList = {};
+					for (let i = 0; i < length; ++i) {
+						if (answer[i] == guess[i]) {
+							retVal.bothCorrect++;
+							skipList[i] = true;
+						}
+					}
+					for (let i = 0; i < length; ++i) {
+						if (skipList[i]) continue;
+						for (let j = 0; j < length; ++j) {
+							if (skipList[j]) continue;
+							if (answer[i] == guess[j]) {
+								retVal.colorCorrect++;
+								break;
+							}
+						}
+					}
+					return retVal;
+				}
+
+				/**
+				 * @param guess e.g. ["red", "green", "blue"]
+				 * @param evidences e.g. [{guess: ["red", "red", "red"], bothCorrect: 0, colorCorrect: 0}]
+				 * @return e.g. false
+				 */
+				function guessContradictsSomeEvidence(guess, evidences) {
+					for (let key in evidences) {
+						let evidence = evidences[key];
+						/*
+						 * Treat the guess like an answer and the evidence as a guess, and
+						 * see whether the judgment is the same.
+						 */
+						let judgement = judgeGuess(guess, evidence.guess);
+						if ((judgement.bothCorrect != evidence.bothCorrect) || (judgement.colorCorrect != evidence.colorCorrect)) {
+							//console.log("guess", guess, "contradicts evidence", evidence.guess);
+							return true;
+						}
+					}
+					return false;
+				}
+
+				/**
+				 * @return an array e.g. ["red", "green", "blue"] or null to indicate
+				 * that there are no possible guesses left.
+				 */
+				function generateNextGuess(gameState, evidence) {
+					let guessIndex = Math.floor(Math.random() * gameState.possibleGuesses.length);
+					let guess = gameState.possibleGuesses[guessIndex];
+					gameState.possibleGuesses.splice(guessIndex, 1);
+					while (guessContradictsSomeEvidence(guess, evidence)) {
+						if (gameState.possibleGuesses.length < 1) {
+							return null;
+						}
+						guessIndex = Math.floor(Math.random() * gameState.possibleGuesses.length);
+						guess = gameState.possibleGuesses[guessIndex];
+						gameState.possibleGuesses.splice(guessIndex, 1);
+					}
+					if (typeof guess !== 'object') {
+						debugger;
+						throw "Expected guess to be an array, but it was " + (typeof guess);
+					}
+					return guess;
+				}
+
+				function guessToString(guess) {
+					if ((typeof guess) !== "object") {
+						throw "Expected guess to be an array but it was a " + (typeof guess);
+					}
+					return guess.join(", ");
+				}
+
+				function updateUiWithAGuess() {
+					$curGuessAlert.hide();
+					$success.hide();
+					if ($playAreaCurGuess.find('input').length != 0) {
+						let bothCorrect = parseInt($playAreaCurGuess.find('.bothCorrect').val());
+						let colorCorrect = parseInt($playAreaCurGuess.find('.colorCorrect').val());
+						if (bothCorrect + colorCorrect > globalGameState.numPegs) {
+							$curGuessAlert.text("The sum of Right-Color-and-Column and Right-color-wrong-column should be less than the number of pegs.");
+							$curGuessAlert.show();
+							return;
+						}
+						if (bothCorrect == globalGameState.numPegs) {
+							$curGuessAlert.hide();
+							$success.show();
+							return;
+						}
+						$oldGuessesTable.show();
+						let guess = $playAreaCurGuess.find('.guess').data('guess');
+						let $guessToAdd = $(oldGuessTemplate({
+							guess: guessToString(guess),
+							bothCorrect: bothCorrect,
+							colorCorrect: colorCorrect
+						}));
+						$guessToAdd.data('evidence', {
+							guess: guess,
+							bothCorrect: bothCorrect,
+							colorCorrect: colorCorrect
+						});
+						$playAreaOldGuesses.append($guessToAdd);
+					}
+					var evidence = [];
+					$playAreaOldGuesses.find('.evidence').each((index, evidenceRow) => {
+						let $evidenceRow = $(evidenceRow);
+						evidence.push($evidenceRow.data('evidence'));
+					});
+					var guess = generateNextGuess(globalGameState, evidence);
+					if (guess == null) {
+						$playAreaCurGuess.hide();
+						$curGuessAlert.html("Ran out of possible guesses. There might be a contradiction in the information you entered above. If you think this is a bug, please file a report at <a href='https://github.com/NebuPookins/JS-Mastermind-Solver/issues'>https://github.com/NebuPookins/JS-Mastermind-Solver/issues</a>. Otherwise, click 'Restart' to try a new game.");
+						$curGuessAlert.show();
+					} else {
+						$playAreaCurGuess.html(newGuessTemplate({
+							guess: guessToString(guess),
+							numPegs: globalGameState.numPegs
+						}));
+						$playAreaCurGuess.find('.guess').data('guess', guess);
+						$playAreaCurGuess.show();
 					}
 				}
-		});
-		console.log('Contradiction found? ' + contradictionFound);
-		return contradictionFound;
-	}
 
-	function updateOldData() {
-		var $exactlyRight = $('.exactlyRight');
-		var $rightColor = $('.rightColor');
-		var $done = $('.done');
-		var $oldGuessLine;
-		var data;
-		$oldGuessLine = $exactlyRight.parents('li');
-		data = $oldGuessLine.data(DATA_KEY);
-		if (data) {
-			data.allCorrect = Math.floor($exactlyRight.val());
-			data.colorCorrect = Math.floor($rightColor.val());
-			$exactlyRight.val(data.allCorrect);
-			$rightColor.val(data.colorCorrect);
-			$oldGuessLine.data(DATA_KEY, data);
-			$exactlyRight.attr('disabled', 'disabled');
-			$rightColor.attr('disabled', 'disabled');
-			$exactlyRight.removeClass('exactlyRight');
-			$rightColor.removeClass('rightColor');
-			$done.remove();
-		}
-	}
+				$startBtn.on('click', () => {
+					$playAreaOldGuesses.html('');
+					$playAreaCurGuess.html('');
+					$inputAlert.hide();
+					$curGuessAlert.hide();
+					$success.hide();
+					var numPegs = parseInt($numPegs.val(), 10);
+					if (numPegs < 1) {
+						$inputAlert.text("Need at least one peg.");
+						$inputAlert.show();
+						return
+					}
+					var parsedColors = $colorLabels.val()
+						.split(/[ ,]+/)
+						.map((color) => color.trim())
+						.filter((color) => color != "");
+					parsedColors
+					if (parsedColors.length < 1) {
+						$inputAlert.text("Need at least one color.");
+						$inputAlert.show();
+						return
+					}
+					var allowDups = $allowDups.is(':checked');
+					if (!allowDups) {
+						if (parsedColors.length < numPegs) {
+							$inputAlert.text("If duplicates are not allowed, need at least as many colors as there are pegs.");
+							$inputAlert.show();
+							return
+						}
+					}
+					let possibleGuesses = allowDups ? generateAllPossibleGuessesWithDups(numPegs, parsedColors) :
+						generateAllPossibleGuessesNoDups(numPegs, parsedColors);
 
+					globalGameState = {
+						numPegs: numPegs,
+						colors: parsedColors,
+						allowDups: allowDups,
+						possibleGuesses: possibleGuesses
+					};
+					console.log(globalGameState);
+					$startBtn.text("Restart");
+					updateUiWithAGuess();
+				});
+				$playAreaCurGuess.on('click', 'button', updateUiWithAGuess);
+				(() => { //Unit tests
+					function assertEqual(actual, expected) {
+						if (actual !== expected) {
+							return { onFail: (f) => { f(); throw "Test case failed."; } };
+						} else {
+							return { onFail: (f) => { /*Does nothing*/} };
+						}
+					}
+					function guessContradictsSomeEvidenceTestCase(guess, evidence, expected) {
+						let result = guessContradictsSomeEvidence(guess, evidence);
+						assertEqual(result, expected).onFail(() => {
+							console.log("Expected guess", guess, "with evidence", evidence, "to result in", expected);
+							// debugger;
+							guessContradictsSomeEvidence(guess, evidence);
+						});
+					}
+					(() => {
+						/*
+						 * https://github.com/NebuPookins/JS-Mastermind-Solver/issues/3
+						 * With 8+ colors, 4 pegs, and no duplicates, if the first 4 colors
+						 * don't appear in the solution, then the next guess should only
+						 * contain colors that were not yet guessed.
+						 */
+						let numPegs = 4;
+						let colors = [1, 2, 3, 4, 5, 6, 7, 8];
+						let evidence = [
+							{ guess: [1, 2, 3, 4], bothCorrect: 0, colorCorrect: 0 }
+						];
+						for (let i = 0; i < 100; i++) {
+							let gameState = {
+								numPegs: numPegs,
+								colors: colors,
+								allowDups: false,
+								possibleGuesses: generateAllPossibleGuessesNoDups(numPegs, colors)
+							};
+							let result = generateNextGuess(gameState, evidence);
+							assertEqual(
+								result.includes(1) || result.includes(2) || result.includes(3) || result.includes(4),
+								false
+								).onFail(() => {
+									console.log("Expected result to not include", evidence[0].guess, "but was", result);
+								});
+							}
+						})()
+					
+					//generic tests
+					guessContradictsSomeEvidenceTestCase(["R", "G", "B", "Y"], [{guess: ["B", "G", "C", "C"], bothCorrect: 1, colorCorrect: 1}], false);
 
-	function update() {
-		var guess;
-		var $newGuessLine;
-		var $numCol = $('#numCol');
-		var $numPeg = $('#numPeg');
-		var $allowDuplicates = $('#allowDuplicates')
-		updateOldData();
-		guess = generateGuess($numCol.val(), $numPeg.val(), $allowDuplicates.is(':checked'));
-		console.log('Guessing ' + guess + '?');
-		while (guessContradicts(guess)) {
-			console.log('Try again... Guessing ' + guess + '?');
-			guess = generateGuess($numCol.val(), $numPeg.val(), $allowDuplicates.is(':checked'));
-		}
-		console.log('Yes, guess is: ' + convertGuess(guess));
-		$newGuessLine = $('<li/>', { text : '' + convertGuess(guess)});
-		$newGuessLine.append($(' <span> Right Color & Column: <input class="exactlyRight" type="number"/></span>'));
-		$newGuessLine.append($(' <span> Right Color, Wrong Column: <input class="rightColor" type="number"/></span>'));
-		$newGuessLine.append($('<button class="done">Done</button>'));
-		$newGuessLine.data(DATA_KEY, {guess: guess});
-		$guesses.append($newGuessLine);
-	}
-	/**
-	 * Generates and returns a corresponding array of colorNames (an array of strings) from the comma-seperated list 
-	 * in the textbox for each guess (an array of integers)
-	 */
-	function convertGuess(guess) {
-		var $colNames=$('#colNames').val();
-		var colorNames=[];
-		var retVal = [];
-		var i;
-		if($colNames.length>1){
-			colorNames=$colNames.split(",");
-		}
-		for(i=0;i<guess.length;i++) {
-			if(colorNames.length>guess[i]) {
-				retVal.push(colorNames[guess[i]]);
-			}
-			else {
-				retVal.push(guess[i]);
-			}
-		}
-		return retVal;
-	}
+				})(); //Uncomment to run unit tests.
 
-	$restart.click(function() {
-		$guesses.children().remove();
-		update();
-	});
-	$('.done').live('click', update);
-});
-</script></head>
-<body>
-<div>
-<div><label for="numCol">Number of colors:</label> <input class="number" type="number" id="numCol" min="0" step="1" value="4"/> <label for="colNames">Comma seperated list of color names:</label> <input type="text" id="colNames"></div>
-<div><label for="numPeg">Number of pegs:</label> <input class="number" type="number" id="numPeg" min="0" step="1" value="4"/></div>
-<div><input type="checkbox" id="allowDuplicates" checked="checked"></input><label for="allowDuplicates">Allow duplicate colors in a guess:</label></div>
- <button id="restart">(Re)Start</button>
-</div>
-
-<div>
-Note that any colors with names not specified at the top will be indicated below using their 0 based number (e.g. if there are 4 colors, they will be "0", "1", "2" and "3").
-<ol id="guesses"/>
-</div>
-</body>
+			});
+		</script>
+	</body>
 </html>
