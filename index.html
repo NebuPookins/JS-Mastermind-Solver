@@ -185,20 +185,45 @@
 				}
 
 				/**
-				 * @return an array e.g. ["red", "green", "blue"] or null to indicate
-				 * that there are no possible guesses left.
+				 * Removes and returns the element at the provided index from an array.
+				 * This function may shuffle/reorder the elements of the array for
+				 * efficiency reasons. For example, if you request to remove the first
+				 * element of the array, rather than reindexing every element in the
+				 * array (O(N)), this function may choose to swap the first and last
+				 * element of the array, and then remove the last element from the
+				 * array (O(1)).
+				 */
+				function quickRemoveFromArray(index, array) {
+					var arrayLength = array.length;
+					if (index >= arrayLength || index < 0) {
+						throw "Tried to access index " + index + " from array of length " + arrayLength;
+					}
+					if (arrayLength === 1) {
+						return array.pop();
+					}
+					var retVal = array[index];
+					var lastElement = array.pop();
+					array[index] = lastElement;
+					return retVal;
+				}
+
+				/**
+				 * Returns an array e.g. ["red", "green", "blue"] or null to indicate
+				 * that there are no possible guesses left. It randomly selects one of
+				 * the guesses from the provided `gameState` parameter, and removes
+				 * that guess from the list of possible guesses. This function may also
+				 * "shuffle" or reorder the elements in the possible guesses list for
+				 * efficiency reasons.
 				 */
 				function generateNextGuess(gameState, evidence) {
 					let guessIndex = Math.floor(Math.random() * gameState.possibleGuesses.length);
-					let guess = gameState.possibleGuesses[guessIndex];
-					gameState.possibleGuesses.splice(guessIndex, 1);
+					let guess = quickRemoveFromArray(guessIndex, gameState.possibleGuesses);
 					while (guessContradictsSomeEvidence(guess, evidence)) {
 						if (gameState.possibleGuesses.length < 1) {
 							return null;
 						}
 						guessIndex = Math.floor(Math.random() * gameState.possibleGuesses.length);
-						guess = gameState.possibleGuesses[guessIndex];
-						gameState.possibleGuesses.splice(guessIndex, 1);
+						guess = quickRemoveFromArray(guessIndex, gameState.possibleGuesses);
 					}
 					if (typeof guess !== 'object') {
 						debugger;
