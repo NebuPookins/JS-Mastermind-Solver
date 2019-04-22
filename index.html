@@ -142,25 +142,24 @@
 				 * return e.g. { bothCorrect: 1, colorCorrect: 2 }
 				 */
 				function judgeGuess(answer, guess) {
-					let length = answer.length;
 					let retVal = {bothCorrect: 0, colorCorrect: 0};
-					let skipList = {};
-					for (let i = 0; i < length; ++i) {
+					let unaccountedForAnswers = [];
+					let unaccountedForGuesses = [];
+					for (let i = 0; i < answer.length; ++i) {
 						if (answer[i] == guess[i]) {
 							retVal.bothCorrect++;
-							skipList[i] = true;
+						} else {
+							unaccountedForAnswers.push(answer[i]);
+							unaccountedForGuesses.push(guess[i]);
 						}
 					}
-					for (let i = 0; i < length; ++i) {
-						if (skipList[i]) continue;
-						for (let j = 0; j < length; ++j) {
-							if (skipList[j]) continue;
-							if (answer[i] == guess[j]) {
-								retVal.colorCorrect++;
-								break;
-							}
+					unaccountedForAnswers.forEach((a) => {
+						var guessIndex = unaccountedForGuesses.indexOf(a);
+						if (guessIndex != -1) {
+							retVal.colorCorrect++;
+							unaccountedForGuesses.splice(guessIndex, 1);
 						}
-					}
+					})
 					return retVal;
 				}
 
@@ -356,6 +355,12 @@
 					
 					//generic tests
 					guessContradictsSomeEvidenceTestCase(["R", "G", "B", "Y"], [{guess: ["B", "G", "C", "C"], bothCorrect: 1, colorCorrect: 1}], false);
+					guessContradictsSomeEvidenceTestCase(["R", "B", "Y", "R"], [{guess: ["G", "B", "R", "Y"], bothCorrect: 1, colorCorrect: 3}], true);
+					guessContradictsSomeEvidenceTestCase(["R", "G", "B", "Y"], [
+						{guess: ["R", "R", "R", "B"], bothCorrect: 1, colorCorrect: 1},
+						{guess: ["Y", "R", "B", "G"], bothCorrect: 1, colorCorrect: 3},
+					], false);
+					console.log("All tests pass")
 				})//(); //Uncomment to run unit tests.
 			});
 		</script>
