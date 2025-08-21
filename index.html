@@ -40,7 +40,7 @@
 			<div id="play-area">
 				<table id="old-guesses-table" class="table table-striped table-hover" style="display: none">
 					<thead>
-						<tr><th>Guess</th><th>Right color and column</th><th>Right color, wrong column</th></tr>
+						<tr><th>Guess</th><th>Right color and column</th><th>Right color, wrong column</th><th>Ignore</th></tr>
 					</thead>
 					<tbody id="old-guesses">
 					</tbody>
@@ -64,7 +64,21 @@
 					</div>
 				</script>
 				<script id="old-guess-template" type="text/x-handlebars-template">
-					<tr class="evidence"><td>{{guess}}</td><td>{{bothCorrect}}</td><td>{{colorCorrect}}</tr></tr>
+					<tr class="evidence">
+						<td>{{guess}}</td>
+						<td>
+							<input type="number" min="0" step="1" max="{{numPegs}}" value="{{bothCorrect}}" class="form-control form-control-sm bothCorrect-edit" style="width: 60px;">
+						</td>
+						<td>
+							<input type="number" min="0" step="1" max="{{numPegs}}" value="{{colorCorrect}}" class="form-control form-control-sm colorCorrect-edit" style="width: 60px;">
+						</td>
+						<td>
+							<div class="form-check">
+								<input type="checkbox" class="form-check-input ignore-row" id="ignore-{{index}}">
+								<label class="form-check-label" for="ignore-{{index}}">Ignore</label>
+							</div>
+						</td>
+					</tr>
 				</script>
 			</div>
 		</div>
@@ -239,6 +253,67 @@
 					return guess.join(", ");
 				}
 
+				/**
+				 * Regenerates a new guess based on the current feedback from all rows
+				 */
+				function regenerateGuessFromCurrentEvidence() {
+					// Collect all current evidence from the editable inputs
+					var evidence = [];
+					$playAreaOldGuesses.find('.evidence').each((index, evidenceRow) => {
+						let $evidenceRow = $(evidenceRow);
+						let $ignoreCheckbox = $evidenceRow.find('.ignore-row');
+						
+						// Skip ignored rows
+						if ($ignoreCheckbox.is(':checked')) {
+							return;
+						}
+						
+						let bothCorrect = parseInt($evidenceRow.find('.bothCorrect-edit').val());
+						let colorCorrect = parseInt($evidenceRow.find('.colorCorrect-edit').val());
+						
+						// Validate the input
+						if (bothCorrect + colorCorrect > globalGameState.numPegs) {
+							return; // Skip invalid rows
+						}
+						
+						// Get the original guess data
+						let originalEvidence = $evidenceRow.data('evidence');
+						if (originalEvidence) {
+							evidence.push({
+								guess: originalEvidence.guess,
+								bothCorrect: bothCorrect,
+								colorCorrect: colorCorrect
+							});
+						}
+					});
+					
+					// Regenerate the game state with the original possible guesses
+					globalGameState.possibleGuesses = globalGameState.allowDups ? 
+						generateAllPossibleGuessesWithDups(globalGameState.numPegs, globalGameState.colors) :
+						generateAllPossibleGuessesNoDups(globalGameState.numPegs, globalGameState.colors);
+					
+					// Generate a new guess based on current evidence
+					var newGuess = generateNextGuess(globalGameState, evidence);
+					
+					// Hide any previous alerts first
+					$curGuessAlert.hide();
+					$success.hide();
+					
+					// Update the current guess display
+					if (newGuess == null) {
+						$playAreaCurGuess.hide();
+						$curGuessAlert.html("The current evidence leads to no possible solutions. Please check your feedback values or ignore some rows that you're unsure about. If you think this is a bug, please file a report at <a href='https://github.com/NebuPookins/JS-Mastermind-Solver/issues'>https://github.com/NebuPookins/JS-Mastermind-Solver/issues</a>.");
+						$curGuessAlert.show();
+					} else {
+						$playAreaCurGuess.html(newGuessTemplate({
+							guess: guessToString(newGuess),
+							numPegs: globalGameState.numPegs
+						}));
+						$playAreaCurGuess.find('.guess').data('guess', newGuess);
+						$playAreaCurGuess.show();
+					}
+				}
+
 				function updateUiWithAGuess() {
 					$curGuessAlert.hide();
 					$success.hide();
@@ -255,12 +330,15 @@
 							$success.show();
 							return;
 						}
+						
 						$oldGuessesTable.show();
 						let guess = $playAreaCurGuess.find('.guess').data('guess');
 						let $guessToAdd = $(oldGuessTemplate({
 							guess: guessToString(guess),
 							bothCorrect: bothCorrect,
-							colorCorrect: colorCorrect
+							colorCorrect: colorCorrect,
+							numPegs: globalGameState.numPegs,
+							index: $playAreaOldGuesses.find('.evidence').length
 						}));
 						$guessToAdd.data('evidence', {
 							guess: guess,
@@ -269,24 +347,9 @@
 						});
 						$playAreaOldGuesses.append($guessToAdd);
 					}
-					var evidence = [];
-					$playAreaOldGuesses.find('.evidence').each((index, evidenceRow) => {
-						let $evidenceRow = $(evidenceRow);
-						evidence.push($evidenceRow.data('evidence'));
-					});
-					var guess = generateNextGuess(globalGameState, evidence);
-					if (guess == null) {
-						$playAreaCurGuess.hide();
-						$curGuessAlert.html("Ran out of possible guesses. There might be a contradiction in the information you entered above. If you think this is a bug, please file a report at <a href='https://github.com/NebuPookins/JS-Mastermind-Solver/issues'>https://github.com/NebuPookins/JS-Mastermind-Solver/issues</a>. Otherwise, click 'Restart' to try a new game.");
-						$curGuessAlert.show();
-					} else {
-						$playAreaCurGuess.html(newGuessTemplate({
-							guess: guessToString(guess),
-							numPegs: globalGameState.numPegs
-						}));
-						$playAreaCurGuess.find('.guess').data('guess', guess);
-						$playAreaCurGuess.show();
-					}
+					
+					// Regenerate the guess based on all current evidence
+					regenerateGuessFromCurrentEvidence();
 				}
 
 				$startBtn.on('click', () => {
@@ -305,7 +368,6 @@
 						.split(/[ ,]+/)
 						.map((color) => color.trim())
 						.filter((color) => color != "");
-					parsedColors
 					if (parsedColors.length < 1) {
 						$inputAlert.text("Need at least one color.");
 						$inputAlert.show();
@@ -332,7 +394,14 @@
 					$startBtn.text("Restart");
 					updateUiWithAGuess();
 				});
-				$playAreaCurGuess.on('click', 'button', updateUiWithAGuess);
+				$playAreaCurGuess.on('click', 'button', function(e) {
+					updateUiWithAGuess();
+				});
+				
+				// Handle changes to editable feedback inputs
+				$playAreaOldGuesses.on('change', 'input[type="number"], input[type="checkbox"]', function() {
+					regenerateGuessFromCurrentEvidence();
+				});
 				(() => { //Unit tests
 					function assertEqual(actual, expected) {
 						if (actual !== expected) {
